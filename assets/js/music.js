@@ -1,5 +1,7 @@
 const $ = document.querySelector.bind(document);
 const $$ = document.querySelectorAll.bind(document);
+const PLAY_MUSIC_STORAGE = 'NHATTAN'
+
 const title = $(".title")
 const cd = $('.cdImg')
 const audio = $('#audio')
@@ -12,11 +14,16 @@ const nextBtn = $('.next')
 const prevBtn = $('.back')
 const author = $('.status')
 const randomBtn = $('.rand')
+const repeatBtn = $('.repeat') 
+
+
 
 const $app = {
     currentSongIndex: 0,
     isRandom: false,
     isPlaying: false,
+    isRepeat: false,
+    config: JSON.parse(localStorage.getItem(PLAY_MUSIC_STORAGE)) || {},
     songs: [
         {
         name: 'La la la',
@@ -72,11 +79,22 @@ const $app = {
         path:'./assets/song/song9.mp3',
         image:'./assets/img/song9.jpg'
     }
-],
+    ,
+    {
+        name: 'Hayya hayya',
+        singer:'Trinidad Cardona, Davido, Aisha',
+        path:'./assets/song/song10.mp3',
+        image:'./assets/img/song10.jpg'
+    }
+    ],
+    setConfig: function(key,value) {
+        this.config[key] = value;   
+        localStorage.setItem(PLAY_MUSIC_STORAGE, JSON.stringify(this.config))
+    },
     render: function (){
-        const htmls = this.songs.map(song =>{
+        const htmls = this.songs.map((song, index) =>{
             return `
-            <div class="song-item">
+            <div class="song-item ${index == this.currentSongIndex ? 'active': ''}" data-index="${index}">
                 <img src="${song.image}" alt="song">
                 <div class="info">
                     <div class="name">${song.name}</div>
@@ -87,7 +105,7 @@ const $app = {
             </div>
             `
         })
-        $('.playlist').innerHTML = htmls.join('')
+        playlist.innerHTML = htmls.join('')
     },
     defineProperties : function(){
         Object.defineProperty(this,'currentSong',{
@@ -100,6 +118,8 @@ const $app = {
         title.textContent  = this.currentSong.name
         cd.src = this.currentSong.image
         audio.src = this.currentSong.path
+        _this.setConfig('currentSongIndex', Number(this.currentSongIndex))
+        
     }
     ,
     handleEvents : function(){
@@ -166,6 +186,21 @@ const $app = {
             audio.currentTime = seekTime
         }
 
+        playlist.onclick = function(e){
+            const songNode = e.target.closest('.song-item:not(.active)')
+            
+            if(songNode || e.target.closest('.more')){
+                if(songNode){
+                    _this.currentSongIndex = Number(songNode.dataset.index)
+                    _this.loadCurrentSong()
+                    audio.play()
+                    _this.render()
+                }
+            }
+        }
+
+        
+
         nextBtn.onclick = function(){
             if(_this.isRandom){
                 _this.playRandomSong()
@@ -173,6 +208,10 @@ const $app = {
                 _this.nextSong()
             }
             audio.play()
+            wraper.classList.add('playing')
+            _this.render()
+            _this.scrollToView()
+
         }
 
         prevBtn.onclick = function(){
@@ -182,16 +221,37 @@ const $app = {
                 _this.prevSong()
             }
             audio.play()
+            _this.render()
+            _this.scrollToView()
         }
 
         randomBtn.onclick = function(e){
             _this.isRandom = !_this.isRandom
+            _this.setConfig('isRandom', _this.isRandom)
             randomBtn.classList.toggle('active', _this.isRandom)
         }
 
-        audio.onended = function(){
-            nextBtn.click()
+        repeatBtn.onclick = function(e){
+            _this.isRepeat = !_this.isRepeat
+            _this.setConfig('isRepeat', _this.isRepeat)
+            repeatBtn.classList.toggle('active', _this.isRepeat)
         }
+
+        audio.onended = function(){
+            if(_this.isRepeat){
+                audio.play()
+            }else{
+                nextBtn.click()
+            }
+        }
+    },
+    scrollToView: function(){
+        setTimeout(()=>{
+            $('.song-item.active').scrollIntoView({
+                behavior:'smooth',
+                block: 'center',
+            })
+        },300)
     }
     ,
     nextSong : function(){
@@ -218,13 +278,23 @@ const $app = {
         this.currentSongIndex = newIndex
         this.loadCurrentSong()
     },
+    loadConfig: function(){
+        this.isRandom = this.config.isRandom 
+        this.isRepeat = this.config.isRepeat 
+        this.currentSongIndex = this.config.currentSongIndex
+    }
+    ,
     start: function (){
+        this.loadConfig()
         this.defineProperties()
         this.handleEvents()
 
 
         this.loadCurrentSong()
         this.render()
+
+        randomBtn.classList.toggle('active', this.isRepeat)
+        repeatBtn.classList.toggle('active', this.isRandom)
         
     }
 }
